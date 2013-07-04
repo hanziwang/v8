@@ -160,6 +160,7 @@ void LGapResolver::Verify() {
 
 
 #define __ ACCESS_MASM(cgen_->masm())
+#define __k __
 
 
 void LGapResolver::EmitMove(int index) {
@@ -210,7 +211,7 @@ void LGapResolver::EmitMove(int index) {
         __ xorps(dst, dst);
       } else {
         __ Set(kScratchRegister, int_val);
-        __ movq(dst, kScratchRegister);
+        __k movq(dst, kScratchRegister);
       }
     } else {
       ASSERT(destination->IsStackSlot());
@@ -329,6 +330,7 @@ void LGapResolver::EmitSwap(int index) {
   }
 }
 
+#undef __k
 #undef __
 
 } }  // namespace v8::internal

@@ -512,9 +512,17 @@ TEST(BootUpMemoryUse) {
       }
     } else {                            // 32-bit.
       if (v8::internal::Snapshot::IsEnabled()) {
+#ifndef V8_TARGET_ARCH_X32
         CHECK_LE(delta, 3100 * 1024);
+#else
+        CHECK_LE(delta, 3700 * 1024);
+#endif
       } else {
+#ifndef V8_TARGET_ARCH_X32
         CHECK_LE(delta, 3450 * 1024);
+#else
+        CHECK_LE(delta, 3900 * 1024);
+#endif
       }
     }
   }

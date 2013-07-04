@@ -1305,9 +1305,17 @@ void Assembler::leal(Register dst, const Operand& src) {
 
 void Assembler::load_rax(void* value, RelocInfo::Mode mode) {
   EnsureSpace ensure_space(this);
+#ifndef V8_TARGET_ARCH_X32
   emit(0x48);  // REX.W
+#endif
   emit(0xA1);
   emitp(value, mode);
+#ifdef V8_TARGET_ARCH_X32
+  // In 64-bit mode, need to zero extend the operand to 8 bytes.
+  // See 2.2.1.4 in Intel64 and IA32 Architectures Software
+  // Developer's Manual Volume 2.
+  emitl(0);
+#endif
 }
 
 
@@ -1888,9 +1896,14 @@ void Assembler::xchgl(Register dst, Register src) {
 
 void Assembler::store_rax(void* dst, RelocInfo::Mode mode) {
   EnsureSpace ensure_space(this);
+#ifndef V8_TARGET_ARCH_X32
   emit(0x48);  // REX.W
+#endif
   emit(0xA3);
   emitp(dst, mode);
+#ifdef V8_TARGET_ARCH_X32
+  emitl(0);
+#endif
 }
 
 

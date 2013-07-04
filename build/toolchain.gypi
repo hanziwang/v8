@@ -338,7 +338,19 @@
           },
         },
         'msvs_configuration_platform': 'x64',
-      }],  # v8_target_arch=="x64"
+      }],  # v8_target_arch=="x32"
+      ['v8_target_arch=="x32"', {
+        'defines': [
+          'V8_TARGET_ARCH_X32',
+        ],
+        'cflags': [
+          '-mx32',
+          '-Wno-long-long',
+        ],
+        'ldflags': [
+          '-mx32',
+        ],
+      }],  # v8_target_arch=="x32"
       ['OS=="win"', {
         'defines': [
           'WIN32',

@@ -55,10 +55,20 @@ class EntryFrameConstants : public AllStatic {
   static const int kXMMRegisterSize = 16;
   static const int kXMMRegistersBlockSize =
       kXMMRegisterSize * kCalleeSaveXMMRegisters;
+#ifndef V8_TARGET_ARCH_X32
   static const int kCallerFPOffset =
       -10 * kPointerSize - kXMMRegistersBlockSize;
 #else
+  static const int kCallerFPOffset =
+      -3 * kPointerSize + -7 * kRegisterSize - kXMMRegistersBlockSize;
+#endif
+#else
+#ifndef V8_TARGET_ARCH_X32
   static const int kCallerFPOffset      = -8 * kPointerSize;
+#else
+  static const int kCallerFPOffset      = -3 * kPointerSize +
+                                          -5 * kRegisterSize;
+#endif
 #endif
   static const int kArgvOffset          = 6 * kPointerSize;
 };
@@ -130,6 +140,9 @@ inline Object* JavaScriptFrame::function_slot_object() const {
 
 
 inline void StackHandler::SetFp(Address slot, Address fp) {
+#ifdef V8_TARGET_ARCH_X32
+  Memory::Address_at(slot + kPointerSize) = 0;
+#endif
   Memory::Address_at(slot) = fp;
 }
 

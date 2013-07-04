@@ -135,8 +135,13 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   // Offsets from rbp of function parameters and stored registers.
   static const int kFramePointer = 0;
   // Above the frame pointer - function parameters and return address.
+#ifndef V8_TARGET_ARCH_X32
   static const int kReturn_eip = kFramePointer + kPointerSize;
   static const int kFrameAlign = kReturn_eip + kPointerSize;
+#else
+  static const int kReturn_eip = kFramePointer + kRegisterSize;
+  static const int kFrameAlign = kReturn_eip + kRegisterSize;
+#endif
 
 #ifdef _WIN64
   // Parameters (first four passed as registers, but with room on stack).
@@ -162,18 +167,33 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   // In AMD64 ABI Calling Convention, the first six integer parameters
   // are passed as registers, and caller must allocate space on the stack
   // if it wants them stored. We push the parameters after the frame pointer.
+#ifndef V8_TARGET_ARCH_X32
   static const int kInputString = kFramePointer - kPointerSize;
   static const int kStartIndex = kInputString - kPointerSize;
   static const int kInputStart = kStartIndex - kPointerSize;
   static const int kInputEnd = kInputStart - kPointerSize;
   static const int kRegisterOutput = kInputEnd - kPointerSize;
+#else
+  static const int kInputString = kFramePointer - kRegisterSize;
+  static const int kStartIndex = kInputString - kRegisterSize;
+  static const int kInputStart = kStartIndex - kRegisterSize;
+  static const int kInputEnd = kInputStart - kRegisterSize;
+  static const int kRegisterOutput = kInputEnd - kRegisterSize;
+#endif
   // For the case of global regular expression, we have room to store at least
   // one set of capture results.  For the case of non-global regexp, we ignore
   // this value.
+#ifndef V8_TARGET_ARCH_X32
   static const int kNumOutputRegisters = kRegisterOutput - kPointerSize;
   static const int kStackHighEnd = kFrameAlign;
   static const int kDirectCall = kStackHighEnd + kPointerSize;
   static const int kIsolate = kDirectCall + kPointerSize;
+#else
+  static const int kNumOutputRegisters = kRegisterOutput - kRegisterSize;
+  static const int kStackHighEnd = kFrameAlign;
+  static const int kDirectCall = kStackHighEnd + kRegisterSize;
+  static const int kIsolate = kDirectCall + kRegisterSize;
+#endif
 #endif
 
 #ifdef _WIN64
@@ -187,7 +207,11 @@ class RegExpMacroAssemblerX64: public NativeRegExpMacroAssembler {
   // AMD64 Calling Convention has only one callee-save register that
   // we use. We push this after the frame pointer (and after the
   // parameters).
+#ifndef V8_TARGET_ARCH_X32
   static const int kBackup_rbx = kNumOutputRegisters - kPointerSize;
+#else
+  static const int kBackup_rbx = kNumOutputRegisters - kRegisterSize;
+#endif
   static const int kLastCalleeSaveRegister = kBackup_rbx;
 #endif
 

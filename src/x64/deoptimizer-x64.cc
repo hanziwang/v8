@@ -70,8 +70,13 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     // There is room enough to write a long call instruction because we pad
     // LLazyBailout instructions with nops if necessary.
     CodePatcher patcher(call_address, Assembler::kCallSequenceLength);
+#ifndef V8_TARGET_ARCH_X32
     patcher.masm()->Call(GetDeoptimizationEntry(isolate, i, LAZY),
                          RelocInfo::NONE64);
+#else
+    patcher.masm()->Call(GetDeoptimizationEntry(isolate, i, LAZY),
+                         RelocInfo::NONE32);
+#endif
     ASSERT(prev_call_address == NULL ||
            call_address >= prev_call_address + patch_size());
     ASSERT(call_address + patch_size() <= code->instruction_end());
@@ -97,7 +102,11 @@ void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
 
   // Fill the frame content from the actual data on the frame.
   for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
+#ifndef V8_TARGET_ARCH_X32
     input_->SetFrameSlot(i, Memory::uint64_at(tos + i));
+#else
+    input_->SetFrameSlot(i, Memory::uint32_at(tos + i));
+#endif
   }
 }
 
@@ -132,6 +141,8 @@ Code* Deoptimizer::NotifyStubFailureBuiltin() {
 
 
 #define __ masm()->
+#define __k __
+#define __q __
 
 void Deoptimizer::EntryGenerator::Generate() {
   GeneratePrologue();
@@ -153,11 +164,16 @@ void Deoptimizer::EntryGenerator::Generate() {
   // to restore all later.
   for (int i = 0; i < kNumberOfRegisters; i++) {
     Register r = Register::from_code(i);
-    __ push(r);
+    __k push(r);
   }
 
+#ifndef V8_TARGET_ARCH_X32
   const int kSavedRegistersAreaSize = kNumberOfRegisters * kPointerSize +
                                       kDoubleRegsSize;
+#else
+  const int kSavedRegistersAreaSize = kNumberOfRegisters * kRegisterSize +
+                                      kDoubleRegsSize;
+#endif
 
   // We use this to keep the value of the fifth argument temporarily.
   // Unfortunately we can't store it directly in r8 (used for passing
@@ -169,9 +185,8 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Get the address of the location in the code object
   // and compute the fp-to-sp delta in register arg5.
-  __ movq(arg_reg_4,
-          Operand(rsp, kSavedRegistersAreaSize + 1 * kPointerSize));
-  __ lea(arg5, Operand(rsp, kSavedRegistersAreaSize + 2 * kPointerSize));
+  __q movq(arg_reg_4, Operand(rsp, kSavedRegistersAreaSize + 1 * kPointerSize));
+  __q lea(arg5, Operand(rsp, kSavedRegistersAreaSize + 2 * kPointerSize));
 
   __ subq(arg5, rbp);
   __ neg(arg5);
@@ -204,18 +219,23 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Fill in the input registers.
   for (int i = kNumberOfRegisters -1; i >= 0; i--) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
+#ifndef V8_TARGET_ARCH_X32
     __ pop(Operand(rbx, offset));
+#else
+    __ pop(kScratchRegister);
+    __ movl(Operand(rbx, offset), kScratchRegister);
+#endif
   }
 
   // Fill in the double input registers.
   int double_regs_offset = FrameDescription::double_registers_offset();
   for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); i++) {
     int dst_offset = i * kDoubleSize + double_regs_offset;
-    __ pop(Operand(rbx, dst_offset));
+    __k pop(Operand(rbx, dst_offset));
   }
 
   // Remove the bailout id and return address from the stack.
-  __ addq(rsp, Immediate(2 * kPointerSize));
+  __q addq(rsp, Immediate(2 * kPointerSize));
 
   // Compute a pointer to the unwinding limit in register rcx; that is
   // the first stack slot not part of the input frame.
@@ -237,7 +257,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ j(not_equal, &pop_loop);
 
   // Compute the output frame in the deoptimizer.
-  __ push(rax);
+  __k push(rax);
   __ PrepareCallCFunction(2);
   __ movq(arg_reg_1, rax);
   __ LoadAddress(arg_reg_2, ExternalReference::isolate_address(isolate()));
@@ -246,7 +266,7 @@ void Deoptimizer::EntryGenerator::Generate() {
     __ CallCFunction(
         ExternalReference::compute_output_frames_function(isolate()), 2);
   }
-  __ pop(rax);
+  __k pop(rax);
 
   // Replace the current frame with the output frames.
   Label outer_push_loop, inner_push_loop,
@@ -281,13 +301,24 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Push state, pc, and continuation from the last output frame.
   __ push(Operand(rbx, FrameDescription::state_offset()));
+#ifdef V8_TARGET_ARCH_X32
+  __ Push(Immediate(0));
+#endif
   __ push(Operand(rbx, FrameDescription::pc_offset()));
+#ifdef V8_TARGET_ARCH_X32
+  __ Push(Immediate(0));
+#endif
   __ push(Operand(rbx, FrameDescription::continuation_offset()));
 
   // Push the registers from the last output frame.
   for (int i = 0; i < kNumberOfRegisters; i++) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
+#ifndef V8_TARGET_ARCH_X32
     __ push(Operand(rbx, offset));
+#else
+    __ movl(kScratchRegister, Operand(rbx, offset));
+    __ push(kScratchRegister);
+#endif
   }
 
   // Restore the registers from the stack.
@@ -299,7 +330,7 @@ void Deoptimizer::EntryGenerator::Generate() {
       ASSERT(i > 0);
       r = Register::from_code(i - 1);
     }
-    __ pop(r);
+    __k pop(r);
   }
 
   // Set up the roots register.
@@ -317,7 +348,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   for (int i = 0; i < count(); i++) {
     int start = masm()->pc_offset();
     USE(start);
-    __ push_imm32(i);
+    __k push_imm32(i);
     __ jmp(&done);
     ASSERT(masm()->pc_offset() - start == table_entry_size_);
   }
@@ -326,15 +357,22 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
 
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
+#ifdef V8_TARGET_ARCH_X32
+  SetFrameSlot(offset + kPointerSize, 0);
+#endif
   SetFrameSlot(offset, value);
 }
 
 
 void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
+#ifdef V8_TARGET_ARCH_X32
+  SetFrameSlot(offset + kPointerSize, 0);
+#endif
   SetFrameSlot(offset, value);
 }
 
 
+#undef __k
 #undef __
 
 

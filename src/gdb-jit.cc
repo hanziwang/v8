@@ -525,7 +525,7 @@ class MachO BASE_EMBEDDED {
     uint32_t ncmds;
     uint32_t sizeofcmds;
     uint32_t flags;
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_X32
     uint32_t reserved;
 #endif
   };
@@ -564,7 +564,7 @@ class MachO BASE_EMBEDDED {
     header->magic = 0xFEEDFACEu;
     header->cputype = 7;  // i386
     header->cpusubtype = 3;  // CPU_SUBTYPE_I386_ALL
-#elif V8_TARGET_ARCH_X64
+#elif V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_X32
     header->magic = 0xFEEDFACFu;
     header->cputype = 7 | 0x01000000;  // i386 | 64-bit ABI
     header->cpusubtype = 3;  // CPU_SUBTYPE_I386_ALL
@@ -672,7 +672,7 @@ class ELF BASE_EMBEDDED {
   void WriteHeader(Writer* w) {
     ASSERT(w->position() == 0);
     Writer::Slot<ELFHeader> header = w->CreateSlotHere<ELFHeader>();
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X32
     const uint8_t ident[16] =
         { 0x7f, 'E', 'L', 'F', 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 #elif V8_TARGET_ARCH_X64
@@ -685,7 +685,7 @@ class ELF BASE_EMBEDDED {
     header->type = 1;
 #if V8_TARGET_ARCH_IA32
     header->machine = 3;
-#elif V8_TARGET_ARCH_X64
+#elif V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_X32
     // Processor identification value for x64 is 62 as defined in
     //    System V ABI, AMD64 Supplement
     //    http://www.x86-64.org/documentation/abi.pdf
@@ -785,7 +785,7 @@ class ELFSymbol BASE_EMBEDDED {
   Binding binding() const {
     return static_cast<Binding>(info >> 4);
   }
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X32
   struct SerializedLayout {
     SerializedLayout(uint32_t name,
                      uintptr_t value,
@@ -922,7 +922,7 @@ class ELFSymbolTable : public ELFSection {
 
 class CodeDescription BASE_EMBEDDED {
  public:
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_X32
   enum StackState {
     POST_RBP_PUSH,
     POST_RBP_SET,
@@ -985,7 +985,7 @@ class CodeDescription BASE_EMBEDDED {
         lineinfo_ != NULL;
   }
 
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_X32
   uintptr_t GetStackStateStartAddress(StackState state) const {
     ASSERT(state < STACK_STATE_MAX);
     return stack_state_start_addresses_[state];
@@ -1013,7 +1013,7 @@ class CodeDescription BASE_EMBEDDED {
   GDBJITLineInfo* lineinfo_;
   GDBJITInterface::CodeTag tag_;
   CompilationInfo* info_;
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_X32
   uintptr_t stack_state_start_addresses_[STACK_STATE_MAX];
 #endif
 };
@@ -1109,7 +1109,7 @@ class DebugInfoSection : public DebugSection {
       uintptr_t fb_block_start = w->position();
 #if V8_TARGET_ARCH_IA32
       w->Write<uint8_t>(DW_OP_reg5);  // The frame pointer's here on ia32
-#elif V8_TARGET_ARCH_X64
+#elif V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_X32
       w->Write<uint8_t>(DW_OP_reg6);  // and here on x64.
 #elif V8_TARGET_ARCH_ARM
       UNIMPLEMENTED();
@@ -1564,7 +1564,7 @@ class DebugLineSection : public DebugSection {
 };
 
 
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_X32
 
 class UnwindInfoSection : public DebugSection {
  public:
@@ -1788,7 +1788,7 @@ bool UnwindInfoSection::WriteBodyInternal(Writer* w) {
 }
 
 
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_X32
 
 static void CreateDWARFSections(CodeDescription* desc,
                                 Zone* zone,
@@ -1798,7 +1798,7 @@ static void CreateDWARFSections(CodeDescription* desc,
     obj->AddSection(new(zone) DebugAbbrevSection(desc));
     obj->AddSection(new(zone) DebugLineSection(desc));
   }
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_X32
   obj->AddSection(new(zone) UnwindInfoSection(desc));
 #endif
 }
@@ -2018,7 +2018,7 @@ void GDBJITInterface::AddCode(Handle<Name> name,
 
 
 static void AddUnwindInfo(CodeDescription* desc) {
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_X32
   if (desc->tag() == GDBJITInterface::FUNCTION) {
     // To avoid propagating unwinding information through
     // compilation pipeline we use an approximation.
@@ -2050,7 +2050,7 @@ static void AddUnwindInfo(CodeDescription* desc) {
     desc->SetStackStateStartAddress(CodeDescription::POST_RBP_POP,
                                     desc->CodeEnd());
   }
-#endif  // V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_X32
 }
 
 

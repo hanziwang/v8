@@ -36,6 +36,8 @@
 #include "ia32/frames-ia32.h"
 #elif V8_TARGET_ARCH_X64
 #include "x64/frames-x64.h"
+#elif V8_TARGET_ARCH_X32
+#include "x32/frames-x32.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/frames-arm.h"
 #elif V8_TARGET_ARCH_MIPS

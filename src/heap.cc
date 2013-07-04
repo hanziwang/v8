@@ -68,7 +68,11 @@ namespace internal {
 
 Heap::Heap()
     : isolate_(NULL),
+#ifndef V8_TARGET_ARCH_X32
       code_range_size_(kIs64BitArch ? 512 * MB : 0),
+#else
+      code_range_size_(256 * MB),
+#endif
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
 // a multiple of Page::kPageSize.
       reserved_semispace_size_(8 * (kPointerSize / 4) * MB),

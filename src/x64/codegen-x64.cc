@@ -53,6 +53,7 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 
 
 #define __ masm.
+#define __k __
 
 
 UnaryMathFunction CreateExpFunction() {
@@ -66,13 +67,13 @@ UnaryMathFunction CreateExpFunction() {
   // xmm0: raw double input.
   XMMRegister input = xmm0;
   XMMRegister result = xmm1;
-  __ push(rax);
-  __ push(rbx);
+  __k push(rax);
+  __k push(rbx);
 
   MathExpGenerator::EmitMathExp(&masm, input, result, xmm2, rax, rbx);
 
-  __ pop(rbx);
-  __ pop(rax);
+  __k pop(rbx);
+  __k pop(rax);
   __ movsd(xmm0, result);
   __ Ret();
 
@@ -169,7 +170,7 @@ ModuloFunction CreateModuloFunction() {
   __ j(zero, &valid_result);
   __ fstp(0);  // Drop result in st(0).
   int64_t kNaNValue = V8_INT64_C(0x7ff8000000000000);
-  __ movq(rcx, kNaNValue);
+  __k movq(rcx, kNaNValue);
   __ movq(Operand(rsp, kPointerSize), rcx);
   __ movsd(xmm0, Operand(rsp, kPointerSize));
   __ jmp(&return_result);
@@ -259,9 +260,14 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // Check backing store for COW-ness.  For COW arrays we have to
   // allocate a new backing store.
   __ SmiToInteger32(r9, FieldOperand(r8, FixedDoubleArray::kLengthOffset));
+#ifndef V8_TARGET_ARCH_X32
   __ CompareRoot(FieldOperand(r8, HeapObject::kMapOffset),
                  Heap::kFixedCOWArrayMapRootIndex);
   __ j(equal, &new_backing_store);
+#else
+  // Smi is 4-byte while double is 8-byte for X32.
+  __ jmp(&new_backing_store);
+#endif
   // Check if the backing store is in new-space. If not, we need to allocate
   // a new one since the old one is in pointer-space.
   // If in new space, we can reuse the old backing store because it is
@@ -294,7 +300,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   STATIC_ASSERT(FixedDoubleArray::kHeaderSize == FixedArray::kHeaderSize);
 
   Label loop, entry, convert_hole;
-  __ movq(r15, BitCast<int64_t, uint64_t>(kHoleNanInt64));
+  __k movq(r15, BitCast<int64_t, uint64_t>(kHoleNanInt64));
   // r15: the-hole NaN
   __ jmp(&entry);
 
@@ -351,7 +357,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
     __ Assert(equal, kObjectFoundInSmiOnlyArray);
   }
 
-  __ movq(FieldOperand(r14, r9, times_8, FixedDoubleArray::kHeaderSize), r15);
+  __k movq(FieldOperand(r14, r9, times_8, FixedDoubleArray::kHeaderSize), r15);
   __ bind(&entry);
   __ decq(r9);
   __ j(not_sign, &loop);
@@ -396,7 +402,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ movq(FieldOperand(r11, FixedArray::kLengthOffset), r14);
 
   // Prepare for conversion loop.
-  __ movq(rsi, BitCast<int64_t, uint64_t>(kHoleNanInt64));
+  __k movq(rsi, BitCast<int64_t, uint64_t>(kHoleNanInt64));
   __ LoadRoot(rdi, Heap::kTheHoleValueRootIndex);
   // rsi: the-hole NaN
   // rdi: pointer to the-hole
@@ -410,13 +416,13 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 
   // Box doubles into heap numbers.
   __ bind(&loop);
-  __ movq(r14, FieldOperand(r8,
+  __k movq(r14, FieldOperand(r8,
                             r9,
                             times_8,
                             FixedDoubleArray::kHeaderSize));
   // r9 : current element's index
   // r14: current element
-  __ cmpq(r14, rsi);
+  __k cmpq(r14, rsi);
   __ j(equal, &convert_hole);
 
   // Non-hole double, copy value into a heap number.
@@ -606,20 +612,20 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   __ movq(temp2, double_scratch);
   __ subsd(double_scratch, result);
   __ movsd(result, Operand(kScratchRegister, 6 * kDoubleSize));
-  __ lea(temp1, Operand(temp2, 0x1ff800));
-  __ and_(temp2, Immediate(0x7ff));
-  __ shr(temp1, Immediate(11));
+  __k lea(temp1, Operand(temp2, 0x1ff800));
+  __k and_(temp2, Immediate(0x7ff));
+  __k shr(temp1, Immediate(11));
   __ mulsd(double_scratch, Operand(kScratchRegister, 5 * kDoubleSize));
   __ Move(kScratchRegister, ExternalReference::math_exp_log_table());
-  __ shl(temp1, Immediate(52));
-  __ or_(temp1, Operand(kScratchRegister, temp2, times_8, 0));
+  __k shl(temp1, Immediate(52));
+  __k or_(temp1, Operand(kScratchRegister, temp2, times_8, 0));
   __ Move(kScratchRegister, ExternalReference::math_exp_constants(0));
   __ subsd(double_scratch, input);
   __ movsd(input, double_scratch);
   __ subsd(result, double_scratch);
   __ mulsd(input, double_scratch);
   __ mulsd(result, input);
-  __ movq(input, temp1);
+  __k movq(input, temp1);
   __ mulsd(result, Operand(kScratchRegister, 7 * kDoubleSize));
   __ subsd(result, double_scratch);
   __ addsd(result, Operand(kScratchRegister, 8 * kDoubleSize));
@@ -628,6 +634,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   __ bind(&done);
 }
 
+#undef __k
 #undef __
 
 

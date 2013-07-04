@@ -38,6 +38,7 @@ namespace v8 {
 namespace internal {
 
 #define __ ACCESS_MASM(masm)
+#define __k __
 
 
 static void ProbeTable(Isolate* isolate,
@@ -51,8 +52,13 @@ static void ProbeTable(Isolate* isolate,
                        Register offset) {
   // We need to scale up the pointer by 2 because the offset is scaled by less
   // than the pointer size.
+#ifndef V8_TARGET_ARCH_X32
   ASSERT(kPointerSizeLog2 == kHeapObjectTagSize + 1);
   ScaleFactor scale_factor = times_2;
+#else
+  ASSERT(kPointerSizeLog2 == kHeapObjectTagSize);
+  ScaleFactor scale_factor = times_1;
+#endif
 
   ASSERT_EQ(3 * kPointerSize, sizeof(StubCache::Entry));
   // The offset register holds the entry offset times four (due to masking
@@ -401,9 +407,9 @@ static void ReserveSpaceForFastApiCall(MacroAssembler* masm, Register scratch) {
   //  -- rsp[0] : return address
   //  -- rsp[8] : last argument in the internal frame of the caller
   // -----------------------------------
-  __ movq(scratch, StackOperandForReturnAddress(0));
+  __k movq(scratch, StackOperandForReturnAddress(0));
   __ subq(rsp, Immediate(kFastApiCallArguments * kPointerSize));
-  __ movq(StackOperandForReturnAddress(0), scratch);
+  __k movq(StackOperandForReturnAddress(0), scratch);
   __ Move(scratch, Smi::FromInt(0));
   StackArgumentsAccessor args(rsp, kFastApiCallArguments,
                               ARGUMENTS_DONT_CONTAIN_RECEIVER);
@@ -417,15 +423,14 @@ static void ReserveSpaceForFastApiCall(MacroAssembler* masm, Register scratch) {
 static void FreeSpaceForFastApiCall(MacroAssembler* masm, Register scratch) {
   // ----------- S t a t e -------------
   //  -- rsp[0]                             : return address.
-  //  -- rsp[8]                             : last fast api call extra argument.
+  //  -- rsp[8]                             : last extra argument.
   //  -- ...
-  //  -- rsp[kFastApiCallArguments * 8]     : first fast api call extra
-  //                                          argument.
-  //  -- rsp[kFastApiCallArguments * 8 + 8] : last argument in the internal
-  //                                          frame.
+  //  -- rsp[kFastApiCallArguments * 8]     : first extra argument.
+  //  -- rsp[kFastApiCallArguments * 8 + 8] : last argument in the
+  //                                          internal frame.
   // -----------------------------------
-  __ movq(scratch, StackOperandForReturnAddress(0));
-  __ movq(StackOperandForReturnAddress(kFastApiCallArguments * kPointerSize),
+  __k movq(scratch, StackOperandForReturnAddress(0));
+  __k movq(StackOperandForReturnAddress(kFastApiCallArguments * kPointerSize),
           scratch);
   __ addq(rsp, Immediate(kPointerSize * kFastApiCallArguments));
 }
@@ -2164,8 +2169,13 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
 
   // Checks for 0x80000000 which signals a failed conversion.
   Label conversion_failure;
+#ifndef V8_TARGET_ARCH_X32
   __ cmpl(rax, Immediate(0x80000000));
   __ j(equal, &conversion_failure);
+#else
+  __ testl(rax, Immediate(0xc0000000));
+  __ j(not_zero, &conversion_failure);
+#endif
 
   // Smi tag and return.
   __ Integer32ToSmi(rax, rax);
@@ -2176,7 +2186,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
   Label already_round;
   __ bind(&conversion_failure);
   int64_t kTwoMantissaBits= V8_INT64_C(0x4330000000000000);
-  __ movq(rbx, kTwoMantissaBits);
+  __k movq(rbx, kTwoMantissaBits);
   __ movq(xmm1, rbx);
   __ ucomisd(xmm0, xmm1);
   __ j(above_equal, &already_round);
@@ -2197,7 +2207,7 @@ Handle<Code> CallStubCompiler::CompileMathFloorCall(
 
   // Subtract 1 if the argument was less than the tentative result.
   int64_t kOne = V8_INT64_C(0x3ff0000000000000);
-  __ movq(rbx, kOne);
+  __k movq(rbx, kOne);
   __ movq(xmm1, rbx);
   __ andpd(xmm1, xmm2);
   __ subsd(xmm0, xmm1);
@@ -2284,14 +2294,14 @@ Handle<Code> CallStubCompiler::CompileMathAbsCall(
   const int sign_mask_shift =
       (HeapNumber::kExponentOffset - HeapNumber::kValueOffset) * kBitsPerByte;
   __ Set(rdi, static_cast<int64_t>(HeapNumber::kSignMask) << sign_mask_shift);
-  __ testq(rbx, rdi);
+  __k testq(rbx, rdi);
   __ j(not_zero, &negative_sign);
   __ ret(2 * kPointerSize);
 
   // If the argument is negative, clear the sign, and return a new
   // number. We still have the sign mask in rdi.
   __ bind(&negative_sign);
-  __ xor_(rbx, rdi);
+  __k xor_(rbx, rdi);
   __ AllocateHeapNumber(rax, rdx, &slow);
   __ MoveDouble(FieldOperand(rax, HeapNumber::kValueOffset), rbx);
   __ ret(2 * kPointerSize);
@@ -2348,9 +2358,9 @@ Handle<Code> CallStubCompiler::CompileFastApiCall(
                   rbx, rax, rdi, name, depth, &miss);
 
   // Move the return address on top of the stack.
-  __ movq(rax,
+  __k movq(rax,
           StackOperandForReturnAddress(kFastApiCallArguments * kPointerSize));
-  __ movq(StackOperandForReturnAddress(0), rax);
+  __k movq(StackOperandForReturnAddress(0), rax);
 
   GenerateFastApiCall(masm(), optimization, argc);
 
@@ -2929,6 +2939,7 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
 }
 
 
+#undef __k
 #undef __
 
 } }  // namespace v8::internal

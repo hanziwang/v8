@@ -59,6 +59,8 @@
 #include "ia32/assembler-ia32-inl.h"
 #elif V8_TARGET_ARCH_X64
 #include "x64/assembler-x64-inl.h"
+#elif V8_TARGET_ARCH_X32
+#include "x32/assembler-x32-inl.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/assembler-arm-inl.h"
 #elif V8_TARGET_ARCH_MIPS
@@ -73,6 +75,8 @@
 #include "ia32/regexp-macro-assembler-ia32.h"
 #elif V8_TARGET_ARCH_X64
 #include "x64/regexp-macro-assembler-x64.h"
+#elif V8_TARGET_ARCH_X32
+#include "x32/regexp-macro-assembler-x32.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/regexp-macro-assembler-arm.h"
 #elif V8_TARGET_ARCH_MIPS
@@ -1334,6 +1338,8 @@ ExternalReference ExternalReference::re_check_stack_guard_state(
   Address function;
 #if V8_TARGET_ARCH_X64
   function = FUNCTION_ADDR(RegExpMacroAssemblerX64::CheckStackGuardState);
+#elif V8_TARGET_ARCH_X32
+  function = FUNCTION_ADDR(RegExpMacroAssemblerX32::CheckStackGuardState);
 #elif V8_TARGET_ARCH_IA32
   function = FUNCTION_ADDR(RegExpMacroAssemblerIA32::CheckStackGuardState);
 #elif V8_TARGET_ARCH_ARM

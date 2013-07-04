@@ -2006,6 +2006,7 @@ class LUint32ToSmi V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
+#ifndef V8_TARGET_ARCH_X32
 class LNumberTagI V8_FINAL : public LTemplateInstruction<1, 1, 0> {
  public:
   explicit LNumberTagI(LOperand* value) {
@@ -2016,6 +2017,20 @@ class LNumberTagI V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(NumberTagI, "number-tag-i")
 };
+#else
+class LNumberTagI V8_FINAL : public LTemplateInstruction<1, 1, 1> {
+ public:
+  explicit LNumberTagI(LOperand* value, LOperand* temp) {
+    inputs_[0] = value;
+    temps_[0] = temp;
+  }
+
+  LOperand* value() { return inputs_[0]; }
+  LOperand* temp() { return temps_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(NumberTagI, "number-tag-i")
+};
+#endif
 
 
 class LNumberTagU V8_FINAL : public LTemplateInstruction<1, 1, 1> {

@@ -362,6 +362,11 @@ void NewStringAddStub::InitializeInterfaceDescriptor(
 
 
 #define __ ACCESS_MASM(masm)
+#define __k __
+#define __a __
+#define __q __
+#define __s __
+#define __n __
 
 
 void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
@@ -530,11 +535,14 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     ASSERT(is_truncating());
 
     Label check_negative, process_64_bits, done;
-
     int double_offset = offset();
 
     // Account for return address and saved regs if input is rsp.
+#ifndef V8_TARGET_ARCH_X32
     if (input_reg.is(rsp)) double_offset += 3 * kPointerSize;
+#else
+    if (input_reg.is(rsp)) double_offset += 3 * kRegisterSize;
+#endif
 
     MemOperand mantissa_operand(MemOperand(input_reg, double_offset));
     MemOperand exponent_operand(MemOperand(input_reg,
@@ -554,14 +562,14 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     // is the return register, then save the temp register we use in its stead
     // for the result.
     Register save_reg = final_result_reg.is(rcx) ? rax : rcx;
-    __ push(scratch1);
-    __ push(save_reg);
+    __k push(scratch1);
+    __k push(save_reg);
 
     bool stash_exponent_copy = !input_reg.is(rsp);
     __ movl(scratch1, mantissa_operand);
     __ movsd(xmm0, mantissa_operand);
     __ movl(rcx, exponent_operand);
-    if (stash_exponent_copy) __ push(rcx);
+    if (stash_exponent_copy) __k push(rcx);
 
     __ andl(rcx, Immediate(HeapNumber::kExponentMask));
     __ shrl(rcx, Immediate(HeapNumber::kExponentShift));
@@ -602,8 +610,8 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
         ASSERT(final_result_reg.is(rcx));
         __ movl(final_result_reg, result_reg);
     }
-    __ pop(save_reg);
-    __ pop(scratch1);
+    __k pop(save_reg);
+    __k pop(scratch1);
     __ ret(0);
 }
 
@@ -1616,11 +1624,11 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Argument 9: Pass current isolate address.
   __ LoadAddress(kScratchRegister,
                  ExternalReference::isolate_address(masm->isolate()));
-  __ movq(Operand(rsp, (argument_slots_on_stack - 1) * kPointerSize),
+  __s movq(Operand(rsp, (argument_slots_on_stack - 1) * kPointerSize),
           kScratchRegister);
 
   // Argument 8: Indicate that this is a direct call from JavaScript.
-  __ movq(Operand(rsp, (argument_slots_on_stack - 2) * kPointerSize),
+  __s movq(Operand(rsp, (argument_slots_on_stack - 2) * kPointerSize),
           Immediate(1));
 
   // Argument 7: Start (high end) of backtracking stack memory area.
@@ -1628,13 +1636,13 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ movq(r9, Operand(kScratchRegister, 0));
   __ Move(kScratchRegister, address_of_regexp_stack_memory_size);
   __ addq(r9, Operand(kScratchRegister, 0));
-  __ movq(Operand(rsp, (argument_slots_on_stack - 3) * kPointerSize), r9);
+  __s movq(Operand(rsp, (argument_slots_on_stack - 3) * kPointerSize), r9);
 
   // Argument 6: Set the number of capture registers to zero to force global
   // regexps to behave as non-global.  This does not affect non-global regexps.
   // Argument 6 is passed in r9 on Linux and on the stack on Windows.
 #ifdef _WIN64
-  __ movq(Operand(rsp, (argument_slots_on_stack - 4) * kPointerSize),
+  __s movq(Operand(rsp, (argument_slots_on_stack - 4) * kPointerSize),
           Immediate(0));
 #else
   __ Set(r9, 0);
@@ -1645,7 +1653,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
                  ExternalReference::address_of_static_offsets_vector(isolate));
   // Argument 5 passed in r8 on Linux and on the stack on Windows.
 #ifdef _WIN64
-  __ movq(Operand(rsp, (argument_slots_on_stack - 5) * kPointerSize), r8);
+  __s movq(Operand(rsp, (argument_slots_on_stack - 5) * kPointerSize), r8);
 #endif
 
   // rdi: subject string
@@ -2628,8 +2636,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     // Read result values stored on stack. Result is stored
     // above the four argument mirror slots and the two
     // Arguments object slots.
-    __ movq(rax, Operand(rsp, 6 * kPointerSize));
-    __ movq(rdx, Operand(rsp, 7 * kPointerSize));
+    __s movq(rax, Operand(rsp, 6 * kPointerSize));
+    __s movq(rdx, Operand(rsp, 7 * kPointerSize));
   }
 #endif
   __ lea(rcx, Operand(rax, 1));
@@ -2793,15 +2801,15 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
     __ push(kScratchRegister);  // context slot
     __ push(kScratchRegister);  // function slot
     // Save callee-saved registers (X64/Win64 calling conventions).
-    __ push(r12);
-    __ push(r13);
-    __ push(r14);
-    __ push(r15);
+    __k push(r12);
+    __k push(r13);
+    __k push(r14);
+    __k push(r15);
 #ifdef _WIN64
-    __ push(rdi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
-    __ push(rsi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
+    __k push(rdi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
+    __k push(rsi);  // Only callee save in Win64 ABI, argument in AMD64 ABI.
 #endif
-    __ push(rbx);
+    __k push(rbx);
 
 #ifdef _WIN64
     // On Win64 XMM6-XMM15 are callee-save
@@ -2921,16 +2929,16 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ addq(rsp, Immediate(EntryFrameConstants::kXMMRegistersBlockSize));
 #endif
 
-  __ pop(rbx);
+  __k pop(rbx);
 #ifdef _WIN64
   // Callee save on in Win64 ABI, arguments/volatile in AMD64 ABI.
-  __ pop(rsi);
-  __ pop(rdi);
+  __k pop(rsi);
+  __k pop(rdi);
 #endif
-  __ pop(r15);
-  __ pop(r14);
-  __ pop(r13);
-  __ pop(r12);
+  __k pop(r15);
+  __k pop(r14);
+  __k pop(r13);
+  __k pop(r12);
   __ addq(rsp, Immediate(2 * kPointerSize));  // remove markers
 
   // Restore frame pointer and return.
@@ -2955,6 +2963,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // indicate that the value is not an instance.
 
   static const int kOffsetToMapCheckValue = 2;
+#ifndef V8_TARGET_ARCH_X32
   static const int kOffsetToResultValue = 18;
   // The last 4 bytes of the instruction sequence
   //   movq(rdi, FieldOperand(rax, HeapObject::kMapOffset))
@@ -2966,6 +2975,19 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   //   __ LoadRoot(ToRegister(instr->result()), Heap::kTheHoleValueRootIndex);
   // before the offset of the hole value in the root array.
   static const unsigned int kWordBeforeResultValue = 0x458B4906;
+#else
+  static const int kOffsetToResultValue = 14;
+  // The last 4 bytes of the instruction sequence
+  //   movl(rdi, FieldOperand(rax, HeapObject::kMapOffset))
+  //   Move(kScratchRegister, Factory::the_hole_value())
+  // in front of the hole value address.
+  static const unsigned int kWordBeforeMapCheckValue = 0xBA41FF78;
+  // The last 4 bytes of the instruction sequence
+  //   __ j(not_equal, &cache_miss);
+  //   __ LoadRoot(ToRegister(instr->result()), Heap::kTheHoleValueRootIndex);
+  // before the offset of the hole value in the root array.
+  static const unsigned int kWordBeforeResultValue = 0x458B4106;
+#endif
   // Only the inline check flag is supported on X64.
   ASSERT(flags_ == kNoFlags || HasCallSiteInlineCheck());
   int extra_argument_offset = HasCallSiteInlineCheck() ? 1 : 0;
@@ -3270,13 +3292,23 @@ void StringAddStub::Generate(MacroAssembler* masm) {
     __ j(above_equal, &call_runtime);
   } else if ((flags_ & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT) {
     ASSERT((flags_ & STRING_ADD_CHECK_RIGHT) == 0);
+#ifndef V8_TARGET_ARCH_X32
     GenerateConvertArgument(masm, 2 * kPointerSize, rax, rbx, rcx, rdi,
                             &call_builtin);
+#else
+    GenerateConvertArgument(masm, 1 * kRegisterSize + 1 * kPointerSize,
+                            rax, rbx, rcx, rdi, &call_builtin);
+#endif
     builtin_id = Builtins::STRING_ADD_RIGHT;
   } else if ((flags_ & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT) {
     ASSERT((flags_ & STRING_ADD_CHECK_LEFT) == 0);
+#ifndef V8_TARGET_ARCH_X32
     GenerateConvertArgument(masm, 1 * kPointerSize, rdx, rbx, rcx, rdi,
                             &call_builtin);
+#else
+    GenerateConvertArgument(masm, 1 * kRegisterSize, rdx, rbx, rcx, rdi,
+                            &call_builtin);
+#endif
     builtin_id = Builtins::STRING_ADD_LEFT;
   }
 
@@ -3322,8 +3354,12 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ movzxbl(r9, FieldOperand(r9, Map::kInstanceTypeOffset));
 
   // Look at the length of the result of adding the two strings.
+#ifndef V8_TARGET_ARCH_X32
   STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue / 2);
   __ SmiAdd(rbx, rbx, rcx);
+#else
+  __ SmiAdd(rbx, rbx, rcx, &call_runtime);
+#endif
   // Use the string table when adding two one character strings, as it
   // helps later optimizations to return an internalized string here.
   __ SmiCompare(rbx, Smi::FromInt(2));
@@ -3635,7 +3671,8 @@ void StringHelper::GenerateCopyCharactersREP(MacroAssembler* masm,
 
   // Copy from edi to esi using rep movs instruction.
   __ movl(kScratchRegister, count);
-  __ shr(count, Immediate(kPointerSizeLog2));  // Number of doublewords to copy.
+  // Number of doublewords to copy.
+  __ shr(count, Immediate(kPointerSizeLog2));
   __ repmovsq();
 
   // Find number of bytes left.
@@ -4203,7 +4240,7 @@ void StringCompareStub::GenerateAsciiCharsCompareLoop(
          FieldOperand(left, length, times_1, SeqOneByteString::kHeaderSize));
   __ lea(right,
          FieldOperand(right, length, times_1, SeqOneByteString::kHeaderSize));
-  __ neg(length);
+  __k neg(length);
   Register index = length;  // index = -length;
 
   // Compare loop.
@@ -4212,7 +4249,7 @@ void StringCompareStub::GenerateAsciiCharsCompareLoop(
   __ movb(scratch, Operand(left, index, times_1, 0));
   __ cmpb(scratch, Operand(right, index, times_1, 0));
   __ j(not_equal, chars_not_equal, near_jump);
-  __ incq(index);
+  __k incq(index);
   __ j(not_zero, &loop);
 }
 
@@ -5172,14 +5209,14 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   // This stub can be called from essentially anywhere, so it needs to save
   // all volatile and callee-save registers.
   const size_t kNumSavedRegisters = 2;
-  __ push(arg_reg_1);
-  __ push(arg_reg_2);
+  __k push(arg_reg_1);
+  __k push(arg_reg_2);
 
   // Calculate the original stack pointer and store it in the second arg.
-  __ lea(arg_reg_2, Operand(rsp, (kNumSavedRegisters + 1) * kPointerSize));
+  __q lea(arg_reg_2, Operand(rsp, (kNumSavedRegisters + 1) * kPointerSize));
 
   // Calculate the function address to the first arg.
-  __ movq(arg_reg_1, Operand(rsp, kNumSavedRegisters * kPointerSize));
+  __s movq(arg_reg_1, Operand(rsp, kNumSavedRegisters * kPointerSize));
   __ subq(arg_reg_1, Immediate(Assembler::kShortCallInstructionLength));
 
   // Save the remainder of the volatile registers.
@@ -5197,9 +5234,8 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 
   // Restore volatile regs.
   masm->PopCallerSaved(kSaveFPRegs, arg_reg_1, arg_reg_2);
-  __ pop(arg_reg_2);
-  __ pop(arg_reg_1);
-
+  __k pop(arg_reg_2);
+  __k pop(arg_reg_1);
   __ Ret();
 }
 
@@ -5530,7 +5566,11 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
   GenerateCase(masm, FAST_ELEMENTS);
 }
 
-
+#undef __n
+#undef __s
+#undef __q
+#undef __a
+#undef __k
 #undef __
 
 } }  // namespace v8::internal

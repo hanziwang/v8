@@ -573,6 +573,8 @@ void LowLevelLogger::LogCodeInfo() {
   const char arch[] = "ia32";
 #elif V8_TARGET_ARCH_X64
   const char arch[] = "x64";
+#elif V8_TARGET_ARCH_X32
+  const char arch[] = "x32";
 #elif V8_TARGET_ARCH_ARM
   const char arch[] = "arm";
 #elif V8_TARGET_ARCH_MIPS

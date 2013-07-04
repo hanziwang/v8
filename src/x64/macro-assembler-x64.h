@@ -684,9 +684,16 @@ class MacroAssembler: public Assembler {
 
   // Shifts a smi value to the left, and returns the result if that is a smi.
   // Uses and clobbers rcx, so dst may not be rcx.
+#ifndef V8_TARGET_ARCH_X32
   void SmiShiftLeft(Register dst,
                     Register src1,
                     Register src2);
+#else
+  void SmiShiftLeft(Register dst,
+                    Register src1,
+                    Register src2,
+                    Label* on_not_smi_result);
+#endif
   // Shifts a smi value to the right, shifting in zero bits at the top, and
   // returns the unsigned intepretation of the result if that is a smi.
   // Uses and clobbers rcx, so dst may not be rcx.
@@ -819,7 +826,11 @@ class MacroAssembler: public Assembler {
 
   // Load a register with a long value as efficiently as possible.
   void Set(Register dst, int64_t x);
+#ifndef V8_TARGET_ARCH_X32
   void Set(const Operand& dst, int64_t x);
+#else
+  void Set(const Operand& dst, int32_t x);
+#endif
 
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
   // hinders register renaming and makes dependence chains longer. So we use
@@ -842,6 +853,15 @@ class MacroAssembler: public Assembler {
   void Cmp(const Operand& dst, Smi* src);
   void Push(Handle<Object> source);
 
+#ifdef V8_TARGET_ARCH_X32
+  void Push(Immediate value);
+  void Push_imm32(int32_t imm32);
+  void Push(Register src);
+  void Push(const Operand& src);
+  void Pop(Register dst);
+  void Pop(const Operand& dst);
+#endif
+
   // Load a heap object and handle the case of new-space objects by
   // indirecting via a global cell.
   void MoveHeapObject(Register result, Handle<Object> object);
@@ -854,8 +874,10 @@ class MacroAssembler: public Assembler {
   void Drop(int stack_elements);
 
   void Call(Label* target) { call(target); }
+#ifndef V8_TARGET_ARCH_X32
   void Push(Register src) { push(src); }
   void Pop(Register dst) { pop(dst); }
+#endif
   void PushReturnAddressFrom(Register src) { push(src); }
   void PopReturnAddressTo(Register dst) { pop(dst); }
   void MoveDouble(Register dst, const Operand& src) { movq(dst, src); }
@@ -885,10 +907,16 @@ class MacroAssembler: public Assembler {
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);
   void Jump(ExternalReference ext);
+#ifdef V8_TARGET_ARCH_X32
+  void Jump(const Operand& src);
+#endif
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
 
   void Call(Address destination, RelocInfo::Mode rmode);
   void Call(ExternalReference ext);
+#ifdef V8_TARGET_ARCH_X32
+  void Call(const Operand& op);
+#endif
   void Call(Handle<Code> code_object,
             RelocInfo::Mode rmode,
             TypeFeedbackId ast_id = TypeFeedbackId::None());
@@ -1473,7 +1501,7 @@ class MacroAssembler: public Assembler {
   // modified. It may be the "smi 1 constant" register.
   Register GetSmiConstant(Smi* value);
 
-  intptr_t RootRegisterDelta(ExternalReference other);
+  int64_t RootRegisterDelta(ExternalReference other);
 
   // Moves the smi value to the destination register.
   void LoadSmiConstant(Register dst, Smi* value);

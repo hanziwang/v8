@@ -68,6 +68,8 @@
 #include "ia32/lithium-codegen-ia32.h"
 #elif V8_TARGET_ARCH_X64
 #include "x64/lithium-codegen-x64.h"
+#elif V8_TARGET_ARCH_X32
+#include "x32/lithium-codegen-x32.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/lithium-codegen-arm.h"
 #elif V8_TARGET_ARCH_MIPS

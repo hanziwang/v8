@@ -43,7 +43,11 @@ namespace internal {
 
 
 static const byte kCallOpcode = 0xE8;
+#ifndef V8_TARGET_ARCH_X32
 static const int kNoCodeAgeSequenceLength = 6;
+#else
+static const int kNoCodeAgeSequenceLength = 17;
+#endif
 
 
 void Assembler::emitl(uint32_t x) {

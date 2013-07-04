@@ -378,6 +378,11 @@ inline Condition ReverseCondition(Condition cc) {
 class Immediate BASE_EMBEDDED {
  public:
   explicit Immediate(int32_t value) : value_(value) {}
+#ifdef V8_TARGET_ARCH_X32
+  explicit Immediate(Smi* value) {
+    value_ = reinterpret_cast<intptr_t>(value);
+  }
+#endif
 
  private:
   int32_t value_;
@@ -395,7 +400,7 @@ enum ScaleFactor {
   times_4 = 2,
   times_8 = 3,
   times_int_size = times_4,
-  times_pointer_size = times_8
+  times_pointer_size = (kPointerSize == 8) ? times_8 : times_4
 };
 
 
@@ -1011,7 +1016,6 @@ class Assembler : public AssemblerBase {
   void orl(const Operand& dst, Immediate src) {
     immediate_arithmetic_op_32(0x1, dst, src);
   }
-
 
   void rcl(Register dst, Immediate imm8) {
     shift(dst, imm8, 0x2);

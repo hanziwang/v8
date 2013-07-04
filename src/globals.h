@@ -64,7 +64,11 @@ namespace internal {
 #define V8_HOST_CAN_READ_UNALIGNED 1
 #else
 #define V8_HOST_ARCH_X64 1
+#if defined(__x86_64__) && !defined(__LP64__)
+#define V8_HOST_ARCH_32_BIT 1
+#else
 #define V8_HOST_ARCH_64_BIT 1
+#endif
 #define V8_HOST_CAN_READ_UNALIGNED 1
 #endif  // __native_client__
 #elif defined(_M_IX86) || defined(__i386__)
@@ -94,7 +98,8 @@ namespace internal {
 // Target architecture detection. This may be set externally. If not, detect
 // in the same way as the host architecture, that is, target the native
 // environment as presented by the compiler.
-#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && \
+
+#if !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_X32 && \
     !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_MIPS
 #if defined(_M_X64) || defined(__x86_64__)
 #define V8_TARGET_ARCH_X64 1
@@ -115,6 +120,9 @@ namespace internal {
 #endif
 #if V8_TARGET_ARCH_X64 && !V8_HOST_ARCH_X64
 #error Target architecture x64 is only supported on x64 host
+#endif
+#if V8_TARGET_ARCH_X32 && !V8_HOST_ARCH_X64 && !V8_HOST_ARCH_32_BIT
+# error Target architecture x32 is only supported on x64 host with x32 support
 #endif
 #if (V8_TARGET_ARCH_ARM && !(V8_HOST_ARCH_IA32 || V8_HOST_ARCH_ARM))
 #error Target architecture arm is only supported on arm and ia32 host
@@ -139,6 +147,8 @@ namespace internal {
 #if V8_TARGET_ARCH_IA32
 #define V8_TARGET_LITTLE_ENDIAN 1
 #elif V8_TARGET_ARCH_X64
+#define V8_TARGET_LITTLE_ENDIAN 1
+#elif V8_TARGET_ARCH_X32
 #define V8_TARGET_LITTLE_ENDIAN 1
 #elif V8_TARGET_ARCH_ARM
 #define V8_TARGET_LITTLE_ENDIAN 1
@@ -249,13 +259,17 @@ const int kInt64Size     = sizeof(int64_t);   // NOLINT
 const int kDoubleSize    = sizeof(double);    // NOLINT
 const int kIntptrSize    = sizeof(intptr_t);  // NOLINT
 const int kPointerSize   = sizeof(void*);     // NOLINT
+#if V8_TARGET_ARCH_X32
+const int kRegisterSize  = kPointerSize + kPointerSize;
+#else
 const int kRegisterSize  = kPointerSize;
+#endif
 const int kPCOnStackSize = kRegisterSize;
 const int kFPOnStackSize = kRegisterSize;
 
 const int kDoubleSizeLog2 = 3;
 
-#if V8_HOST_ARCH_64_BIT
+#if V8_HOST_ARCH_64_BIT && !V8_TARGET_ARCH_X32
 const int kPointerSizeLog2 = 3;
 const intptr_t kIntptrSignBit = V8_INT64_C(0x8000000000000000);
 const uintptr_t kUintptrAllBitsSet = V8_UINT64_C(0xFFFFFFFFFFFFFFFF);

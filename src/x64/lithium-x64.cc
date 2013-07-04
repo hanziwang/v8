@@ -355,6 +355,14 @@ void LAccessArgumentsAt::PrintDataTo(StringStream* stream) {
 
 
 int LPlatformChunk::GetNextSpillIndex(RegisterKind kind) {
+#ifdef V8_TARGET_ARCH_X32
+  // Skip a slot if for a double-width slot.
+  // TODO(haitao): Support aligned spilled doubles.
+  if (kind == DOUBLE_REGISTERS) {
+    spill_slot_count_++;
+    spill_slot_count_ |= 1;
+  }
+#endif
   return spill_slot_count_++;
 }
 
@@ -1260,8 +1268,6 @@ LInstruction* LChunkBuilder::DoBitwise(HBitwise* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
     ASSERT(instr->left()->representation().Equals(instr->representation()));
     ASSERT(instr->right()->representation().Equals(instr->representation()));
-    ASSERT(instr->CheckFlag(HValue::kTruncatingToInt32));
-
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
     LOperand* right = UseOrConstantAtStart(instr->BetterRightOperand());
     return DefineSameAsFirst(new(zone()) LBitI(left, right));
@@ -1356,8 +1362,13 @@ LInstruction* LChunkBuilder::DoMod(HMod* instr) {
   HValue* left = instr->left();
   HValue* right = instr->right();
   if (instr->representation().IsSmiOrInteger32()) {
+#ifndef V8_TARGET_ARCH_X32
     ASSERT(left->representation().Equals(instr->representation()));
     ASSERT(right->representation().Equals(instr->representation()));
+#else
+    ASSERT(left->representation().IsSmiOrInteger32());
+    ASSERT(right->representation().Equals(left->representation()));
+#endif
     if (instr->HasPowerOf2Divisor()) {
       ASSERT(!right->CanBeZero());
       LModI* mod = new(zone()) LModI(UseRegisterAtStart(left),
@@ -1415,8 +1426,14 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
 
 LInstruction* LChunkBuilder::DoSub(HSub* instr) {
   if (instr->representation().IsSmiOrInteger32()) {
+#ifndef V8_TARGET_ARCH_X32
     ASSERT(instr->left()->representation().Equals(instr->representation()));
     ASSERT(instr->right()->representation().Equals(instr->representation()));
+#else
+    ASSERT(instr->left()->representation().IsSmiOrInteger32());
+    ASSERT(instr->right()->representation().Equals(
+        instr->left()->representation()));
+#endif
     LOperand* left = UseRegisterAtStart(instr->left());
     LOperand* right = UseOrConstantAtStart(instr->right());
     LSubI* sub = new(zone()) LSubI(left, right);
@@ -1440,8 +1457,14 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
     // are multiple uses of the add's inputs, so using a 3-register add will
     // preserve all input values for later uses.
     bool use_lea = LAddI::UseLea(instr);
+#ifndef V8_TARGET_ARCH_X32
     ASSERT(instr->left()->representation().Equals(instr->representation()));
     ASSERT(instr->right()->representation().Equals(instr->representation()));
+#else
+    ASSERT(instr->left()->representation().IsSmiOrInteger32());
+    ASSERT(instr->right()->representation().Equals(
+        instr->left()->representation()));
+#endif
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
     HValue* right_candidate = instr->BetterRightOperand();
     LOperand* right = use_lea
@@ -1484,8 +1507,14 @@ LInstruction* LChunkBuilder::DoMathMinMax(HMathMinMax* instr) {
   LOperand* left = NULL;
   LOperand* right = NULL;
   if (instr->representation().IsSmiOrInteger32()) {
+#ifndef V8_TARGET_ARCH_X32
     ASSERT(instr->left()->representation().Equals(instr->representation()));
     ASSERT(instr->right()->representation().Equals(instr->representation()));
+#else
+    ASSERT(instr->left()->representation().IsSmiOrInteger32());
+    ASSERT(instr->right()->representation().Equals(
+        instr->left()->representation()));
+#endif
     left = UseRegisterAtStart(instr->BetterLeftOperand());
     right = UseOrConstantAtStart(instr->BetterRightOperand());
   } else {
@@ -1819,7 +1848,12 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
       } else if (val->HasRange() && val->range()->IsInSmiRange()) {
         return DefineSameAsFirst(new(zone()) LSmiTag(value));
       } else {
+#ifndef V8_TARGET_ARCH_X32
         LNumberTagI* result = new(zone()) LNumberTagI(value);
+#else
+        LOperand* temp = FixedTemp(xmm1);
+        LNumberTagI* result = new(zone()) LNumberTagI(value, temp);
+#endif
         return AssignEnvironment(AssignPointerMap(DefineSameAsFirst(result)));
       }
     } else if (to.IsSmi()) {
@@ -2050,9 +2084,20 @@ LInstruction* LChunkBuilder::DoLoadExternalArrayPointer(
 
 
 LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
+#ifndef V8_TARGET_ARCH_X32
   ASSERT(instr->key()->representation().IsInteger32());
+#else
+  ASSERT(instr->key()->representation().IsSmiOrInteger32());
+#endif
   ElementsKind elements_kind = instr->elements_kind();
+#ifndef V8_TARGET_ARCH_X32
   LOperand* key = UseRegisterOrConstantAtStart(instr->key());
+#else
+  bool clobbers_key = instr->key()->representation().IsSmi();
+  LOperand* key = clobbers_key
+      ? UseTempRegister(instr->key())
+      : UseRegisterOrConstantAtStart(instr->key());
+#endif
   LLoadKeyed* result = NULL;
 
   if (!instr->is_external()) {
@@ -2092,6 +2137,9 @@ LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
   ElementsKind elements_kind = instr->elements_kind();
+#ifdef V8_TARGET_ARCH_X32
+  bool clobbers_key = instr->key()->representation().IsSmi();
+#endif
 
   if (!instr->is_external()) {
     ASSERT(instr->elements()->representation().IsTagged());
@@ -2104,7 +2152,12 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
     if (value_representation.IsDouble()) {
       object = UseRegisterAtStart(instr->elements());
       val = UseTempRegister(instr->value());
+#ifndef V8_TARGET_ARCH_X32
       key = UseRegisterOrConstantAtStart(instr->key());
+#else
+      key = clobbers_key ? UseTempRegister(instr->key())
+          : UseRegisterOrConstantAtStart(instr->key());
+#endif
     } else {
       ASSERT(value_representation.IsSmiOrTagged() ||
              value_representation.IsInteger32());
@@ -2115,7 +2168,12 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
       } else {
         object = UseRegisterAtStart(instr->elements());
         val = UseRegisterOrConstantAtStart(instr->value());
+#ifndef V8_TARGET_ARCH_X32
         key = UseRegisterOrConstantAtStart(instr->key());
+#else
+        key = clobbers_key ? UseTempRegister(instr->key())
+            : UseRegisterOrConstantAtStart(instr->key());
+#endif
       }
     }
 
@@ -2135,7 +2193,12 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
       elements_kind == EXTERNAL_FLOAT_ELEMENTS;
   LOperand* val = val_is_temp_register ? UseTempRegister(instr->value())
       : UseRegister(instr->value());
+#ifndef V8_TARGET_ARCH_X32
   LOperand* key = UseRegisterOrConstantAtStart(instr->key());
+#else
+  LOperand* key = clobbers_key ? UseTempRegister(instr->key())
+      : UseRegisterOrConstantAtStart(instr->key());
+#endif
   LOperand* external_pointer = UseRegister(instr->elements());
   return new(zone()) LStoreKeyed(external_pointer, key, val);
 }

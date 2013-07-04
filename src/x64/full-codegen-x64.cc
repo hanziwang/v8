@@ -43,6 +43,8 @@ namespace v8 {
 namespace internal {
 
 #define __ ACCESS_MASM(masm_)
+#define __k __
+#define __n __
 
 
 class JumpPatchSite BASE_EMBEDDED {
@@ -393,7 +395,11 @@ void FullCodeGenerator::EmitReturnSequence() {
     // Add padding that will be overwritten by a debugger breakpoint.  We
     // have just generated at least 7 bytes: "movq rsp, rbp; pop rbp; ret k"
     // (3 + 1 + 3).
+#ifndef V8_TARGET_ARCH_X32
     const int kPadding = Assembler::kJSReturnSequenceLength - 7;
+#else
+    const int kPadding = Assembler::kJSReturnSequenceLength - 6;
+#endif
     for (int i = 0; i < kPadding; ++i) {
       masm_->int3();
     }
@@ -2115,9 +2121,16 @@ void FullCodeGenerator::EmitGeneratorResume(Expression *generator,
 
   // Push holes for arguments to generator function.
   __ movq(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+#ifndef V8_TARGET_ARCH_X32
   __ movsxlq(rdx,
              FieldOperand(rdx,
                           SharedFunctionInfo::kFormalParameterCountOffset));
+#else
+  __ movl(rdx,
+          FieldOperand(rdx,
+                       SharedFunctionInfo::kFormalParameterCountOffset));
+  __ SmiToInteger32(rdx, rdx);
+#endif
   __ LoadRoot(rcx, Heap::kTheHoleValueRootIndex);
   Label push_argument_holes, push_frame;
   __ bind(&push_argument_holes);
@@ -2266,7 +2279,11 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       __ SmiShiftArithmeticRight(rax, rdx, rcx);
       break;
     case Token::SHL:
+#ifndef V8_TARGET_ARCH_X32
       __ SmiShiftLeft(rax, rdx, rcx);
+#else
+      __ SmiShiftLeft(rax, rdx, rcx, &stub_call);
+#endif
       break;
     case Token::SHR:
       __ SmiShiftLogicalRight(rax, rdx, rcx, &stub_call);
@@ -4056,7 +4073,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ movl(index, array_length_operand);
   __ lea(elements, FieldOperand(elements, index, times_pointer_size,
                                 FixedArray::kHeaderSize));
-  __ neg(index);
+  __k neg(index);
 
   // Replace separator string with pointer to its first character, and
   // make scratch be its length.
@@ -4092,7 +4109,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ lea(string,
          FieldOperand(string, SeqOneByteString::kHeaderSize));
   __ CopyBytes(result_pos, string, string_length);
-  __ incq(index);
+  __k incq(index);
   __ j(not_equal, &loop_3);  // Loop while (index < 0).
 
   __ bind(&done);
@@ -4810,11 +4827,17 @@ FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
 }
 
 
+#undef __n
+#undef __k
 #undef __
 
 
 static const byte kJnsInstruction = 0x79;
+#ifndef V8_TARGET_ARCH_X32
 static const byte kJnsOffset = 0x1d;
+#else
+static const byte kJnsOffset = 0x14;
+#endif
 static const byte kNopByteOne = 0x66;
 static const byte kNopByteTwo = 0x90;
 #ifdef DEBUG

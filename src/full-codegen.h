@@ -131,6 +131,8 @@ class FullCodeGenerator: public AstVisitor {
   static const int kCodeSizeMultiplier = 100;
 #elif V8_TARGET_ARCH_X64
   static const int kCodeSizeMultiplier = 162;
+#elif V8_TARGET_ARCH_X32
+  static const int kCodeSizeMultiplier = 162;
 #elif V8_TARGET_ARCH_ARM
   static const int kCodeSizeMultiplier = 142;
 #elif V8_TARGET_ARCH_MIPS

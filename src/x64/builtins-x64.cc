@@ -39,7 +39,7 @@ namespace internal {
 
 
 #define __ ACCESS_MASM(masm)
-
+#define __k __
 
 void Builtins::Generate_Adaptor(MacroAssembler* masm,
                                 CFunctionId id,
@@ -698,7 +698,13 @@ static void Generate_NotifyStubFailureHelper(MacroAssembler* masm,
     // Tear down internal frame.
   }
 
+#ifndef V8_TARGET_ARCH_X32
   __ pop(MemOperand(rsp, 0));  // Ignore state offset
+#else
+  __ pop(kScratchRegister);  // Pop return address
+  __ leal(rsp, Operand(rsp, 4));  // Pop state
+  __ push(kScratchRegister);  // Push return address
+#endif
   __ ret(0);  // Return to IC Miss stub, continuation still on stack.
 }
 
@@ -875,12 +881,19 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   __ bind(&shift_arguments);
   { Label loop;
     __ movq(rcx, rax);
+#ifdef V8_TARGET_ARCH_X32
+    __ incl(rcx);  // HWRegSize = kPointerSize + kPointerSize
+#endif
     __ bind(&loop);
     __ movq(rbx, Operand(rsp, rcx, times_pointer_size, 0));
     __ movq(Operand(rsp, rcx, times_pointer_size, 1 * kPointerSize), rbx);
     __ decq(rcx);
     __ j(not_sign, &loop);  // While non-negative (to copy return address).
+#ifndef V8_TARGET_ARCH_X32
     __ pop(rbx);  // Discard copy of return address.
+#else
+    __ leal(rsp, Operand(rsp, 4));  // Discard bottom-half of return address
+#endif
     __ decq(rax);  // One fewer argument (first argument is new receiver).
   }
 
@@ -913,9 +926,17 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   //     expected arguments matches what we're providing.  If so, jump
   //     (tail-call) to the code in register edx without checking arguments.
   __ movq(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+#ifndef V8_TARGET_ARCH_X32
   __ movsxlq(rbx,
              FieldOperand(rdx,
                           SharedFunctionInfo::kFormalParameterCountOffset));
+#else
+  // kFormalParameterCountOffset is not tagged in X64, while tagged in X32.
+  __ movl(rbx,
+          FieldOperand(rdx,
+                       SharedFunctionInfo::kFormalParameterCountOffset));
+  __ SmiToInteger32(rbx, rbx);
+#endif
   __ movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
   __ SetCallKind(rcx, CALL_AS_METHOD);
   __ cmpq(rax, rbx);
@@ -1427,7 +1448,7 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
   __ lea(rax, Operand(rax, rbx, times_1, Code::kHeaderSize - kHeapObjectTag));
 
   // Overwrite the return address on the stack.
-  __ movq(Operand(rsp, 0), rax);
+  __k movq(StackOperandForReturnAddress(0), rax);
 
   // And "return" to the OSR entry point of the function.
   __ ret(0);
@@ -1451,6 +1472,9 @@ void Builtins::Generate_OsrAfterStackCheck(MacroAssembler* masm) {
 }
 
 
+#undef __q
+#undef __a
+#undef __k
 #undef __
 
 } }  // namespace v8::internal

@@ -88,6 +88,7 @@ class LCodeGen: public LCodeGenBase {
   bool IsInteger32Constant(LConstantOperand* op) const;
   bool IsSmiConstant(LConstantOperand* op) const;
   int32_t ToInteger32(LConstantOperand* op) const;
+  int32_t ToRepresentation(LConstantOperand* op, const Representation& r) const;
   Smi* ToSmi(LConstantOperand* op) const;
   double ToDouble(LConstantOperand* op) const;
   ExternalReference ToExternalReference(LConstantOperand* op) const;
@@ -106,6 +107,9 @@ class LCodeGen: public LCodeGenBase {
 
   // Deferred code support.
   void DoDeferredNumberTagD(LNumberTagD* instr);
+#ifdef V8_TARGET_ARCH_X32
+  void DoDeferredNumberTagI(LNumberTagI* instr);
+#endif
   void DoDeferredNumberTagU(LNumberTagU* instr);
   void DoDeferredTaggedToI(LTaggedToI* instr, Label* done);
   void DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr);

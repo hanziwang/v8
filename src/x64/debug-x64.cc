@@ -94,6 +94,7 @@ const bool Debug::FramePaddingLayout::kIsSupported = true;
 
 
 #define __ ACCESS_MASM(masm)
+#define __q __
 
 
 static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
@@ -124,7 +125,12 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
         __ push(reg);
       }
       if ((non_object_regs & (1 << r)) != 0) {
+#ifndef V8_TARGET_ARCH_X32
         __ PushInt64AsTwoSmis(reg);
+#else
+        __ Integer32ToSmi(reg, reg);
+        __ push(reg);
+#endif
       }
     }
 
@@ -149,7 +155,12 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
       }
       // Reconstruct the 64-bit value from two smis.
       if ((non_object_regs & (1 << r)) != 0) {
+#ifndef V8_TARGET_ARCH_X32
         __ PopInt64AsTwoSmis(reg);
+#else
+        __ pop(reg);
+        __ SmiToInteger32(reg, reg);
+#endif
       }
     }
 
@@ -164,7 +175,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   // If this call did not replace a call but patched other code then there will
   // be an unwanted return address left on the stack. Here we get rid of that.
   if (convert_call_to_jmp) {
-    __ addq(rsp, Immediate(kPointerSize));
+    __q addq(rsp, Immediate(kPointerSize));
   }
 
   // Now that the break point has been handled, resume normal execution by
@@ -173,7 +184,11 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   ExternalReference after_break_target =
       ExternalReference(Debug_Address::AfterBreakTarget(), masm->isolate());
   __ Move(kScratchRegister, after_break_target);
+#ifndef V8_TARGET_ARCH_X32
   __ jmp(Operand(kScratchRegister, 0));
+#else
+  __ Jump(Operand(kScratchRegister, 0));
+#endif
 }
 
 
@@ -342,6 +357,7 @@ void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
 
 const bool Debug::kFrameDropperSupported = true;
 
+#undef __q
 #undef __
 
 #endif  // ENABLE_DEBUGGER_SUPPORT
