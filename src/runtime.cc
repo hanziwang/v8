@@ -9148,6 +9148,7 @@ struct ObjectPair {
   uint32_t y_upper;
 };
 
+
 static inline ObjectPair MakePair(MaybeObject* x, MaybeObject* y) {
   ObjectPair result = {x, 0, y, 0};
   // Pointers x and y returned in rax and rdx, in x32-abi.
