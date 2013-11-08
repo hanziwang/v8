@@ -2830,7 +2830,7 @@ void MacroAssembler::Pop(const Operand& dst) {
   if (needExtraScratch) {
     // Restore the value of kSmiConstantRegister.
     // Should use InitializeSmiConstantRegister();
-    movl(kSmiConstantRegister,
+    movp(kSmiConstantRegister,
          reinterpret_cast<Address>(Smi::FromInt(kSmiConstantRegisterValue)),
          RelocInfo::NONE32);
   }
@@ -4079,7 +4079,7 @@ void MacroAssembler::EnterExitFramePrologue(bool save_rax) {
   Move(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);
   push(kScratchRegister);  // Accessed from EditFrame::code_slot.
 #else
-  movl(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);
+  Move(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);
   push(kScratchRegister);  // Accessed from EditFrame::code_slot.
 #endif
 
