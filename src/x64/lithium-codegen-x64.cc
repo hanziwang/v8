@@ -2916,6 +2916,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
   }
 
   Representation representation = access.representation();
+#ifndef V8_TARGET_ARCH_X32
   if (representation.IsSmi() &&
       instr->hydrogen()->representation().IsInteger32()) {
     // Read int value directly from upper half of the smi.
@@ -2924,6 +2925,7 @@ void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
     offset += kPointerSize / 2;
     representation = Representation::Integer32();
   }
+#endif
   __ Load(result, FieldOperand(object, offset), representation);
 }
 
