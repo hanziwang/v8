@@ -4125,6 +4125,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     __ movq(write_register, FieldOperand(object, JSObject::kPropertiesOffset));
   }
 
+#ifndef V8_TARGET_ARCH_X32
   if (representation.IsSmi() &&
       hinstr->value()->representation().IsInteger32()) {
     ASSERT(hinstr->store_mode() == STORE_TO_INITIALIZED_ENTRY);
@@ -4134,6 +4135,7 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
     offset += kPointerSize / 2;
     representation = Representation::Integer32();
   }
+#endif
 
   Operand operand = FieldOperand(write_register, offset);
 
