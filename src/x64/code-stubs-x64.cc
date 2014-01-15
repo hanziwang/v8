@@ -363,10 +363,6 @@ void NewStringAddStub::InitializeInterfaceDescriptor(
 
 #define __ ACCESS_MASM(masm)
 #define __k __
-#define __a __
-#define __q __
-#define __s __
-#define __n __
 
 
 void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
@@ -1624,11 +1620,11 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Argument 9: Pass current isolate address.
   __ LoadAddress(kScratchRegister,
                  ExternalReference::isolate_address(masm->isolate()));
-  __s movq(Operand(rsp, (argument_slots_on_stack - 1) * kPointerSize),
+  __k movq(Operand(rsp, (argument_slots_on_stack - 1) * kRegisterSize),
           kScratchRegister);
 
   // Argument 8: Indicate that this is a direct call from JavaScript.
-  __s movq(Operand(rsp, (argument_slots_on_stack - 2) * kPointerSize),
+  __k movq(Operand(rsp, (argument_slots_on_stack - 2) * kRegisterSize),
           Immediate(1));
 
   // Argument 7: Start (high end) of backtracking stack memory area.
@@ -1636,13 +1632,13 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ movq(r9, Operand(kScratchRegister, 0));
   __ Move(kScratchRegister, address_of_regexp_stack_memory_size);
   __ addq(r9, Operand(kScratchRegister, 0));
-  __s movq(Operand(rsp, (argument_slots_on_stack - 3) * kPointerSize), r9);
+  __k movq(Operand(rsp, (argument_slots_on_stack - 3) * kRegisterSize), r9);
 
   // Argument 6: Set the number of capture registers to zero to force global
   // regexps to behave as non-global.  This does not affect non-global regexps.
   // Argument 6 is passed in r9 on Linux and on the stack on Windows.
 #ifdef _WIN64
-  __s movq(Operand(rsp, (argument_slots_on_stack - 4) * kPointerSize),
+  __k movq(Operand(rsp, (argument_slots_on_stack - 4) * kRegisterSize),
           Immediate(0));
 #else
   __ Set(r9, 0);
@@ -1653,7 +1649,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
                  ExternalReference::address_of_static_offsets_vector(isolate));
   // Argument 5 passed in r8 on Linux and on the stack on Windows.
 #ifdef _WIN64
-  __s movq(Operand(rsp, (argument_slots_on_stack - 5) * kPointerSize), r8);
+  __k movq(Operand(rsp, (argument_slots_on_stack - 5) * kRegisterSize), r8);
 #endif
 
   // rdi: subject string
@@ -2636,8 +2632,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     // Read result values stored on stack. Result is stored
     // above the four argument mirror slots and the two
     // Arguments object slots.
-    __s movq(rax, Operand(rsp, 6 * kPointerSize));
-    __s movq(rdx, Operand(rsp, 7 * kPointerSize));
+    __k movq(rax, Operand(rsp, 6 * kRegisterSize));
+    __k movq(rdx, Operand(rsp, 7 * kRegisterSize));
   }
 #endif
   __ lea(rcx, Operand(rax, 1));
@@ -5213,10 +5209,11 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   __k push(arg_reg_2);
 
   // Calculate the original stack pointer and store it in the second arg.
-  __q lea(arg_reg_2, Operand(rsp, (kNumSavedRegisters + 1) * kPointerSize));
+  __ lea(arg_reg_2,
+         Operand(rsp, kNumSavedRegisters * kRegisterSize + kPCOnStackSize));
 
   // Calculate the function address to the first arg.
-  __s movq(arg_reg_1, Operand(rsp, kNumSavedRegisters * kPointerSize));
+  __ movq(arg_reg_1, Operand(rsp, kNumSavedRegisters * kRegisterSize));
   __ subq(arg_reg_1, Immediate(Assembler::kShortCallInstructionLength));
 
   // Save the remainder of the volatile registers.
@@ -5566,10 +5563,6 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
   GenerateCase(masm, FAST_ELEMENTS);
 }
 
-#undef __n
-#undef __s
-#undef __q
-#undef __a
 #undef __k
 #undef __
 

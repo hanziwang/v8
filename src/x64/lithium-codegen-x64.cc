@@ -67,8 +67,6 @@ class SafepointGenerator V8_FINAL : public CallWrapper {
 
 #define __ masm()->
 #define __k __
-#define __q __
-#define __n __
 
 
 bool LCodeGen::GenerateCode() {
@@ -5838,8 +5836,6 @@ void LCodeGen::DoLoadFieldByIndex(LLoadFieldByIndex* instr) {
 }
 
 
-#undef __n
-#undef __q
 #undef __k
 #undef __
 

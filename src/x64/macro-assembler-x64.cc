@@ -57,7 +57,6 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
 static const int kInvalidRootRegisterDelta = -1;
 
 #define __k
-#define __q
 
 int64_t MacroAssembler::RootRegisterDelta(ExternalReference other) {
   if (predictable_code_size() &&
@@ -4102,7 +4101,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
   // Optionally save all XMM registers.
   if (save_doubles) {
     int space = XMMRegister::kMaxNumAllocatableRegisters * kDoubleSize +
-    __q arg_stack_space * kPointerSize;
+        arg_stack_space * kRegisterSize;
     subq(rsp, Immediate(space));
     int offset = -2 * kPointerSize;
     for (int i = 0; i < XMMRegister::NumAllocatableRegisters(); i++) {
@@ -4110,7 +4109,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
       movsd(Operand(rbp, offset - ((i + 1) * kDoubleSize)), reg);
     }
   } else if (arg_stack_space > 0) {
-    __q subq(rsp, Immediate(arg_stack_space * kPointerSize));
+    subq(rsp, Immediate(arg_stack_space * kRegisterSize));
   }
 
   // Get the required frame alignment for the OS.
@@ -4155,7 +4154,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
     }
   }
   // Get the return address from the stack and restore the frame pointer.
-  __q movq(rcx, Operand(rbp, 1 * kPointerSize));
+  movq(rcx, Operand(rbp, 1 * kFPOnStackSize));
   movq(rbp, Operand(rbp, 0 * kPointerSize));
 
   // Drop everything up to and including the arguments and the receiver
@@ -5056,13 +5055,9 @@ void MacroAssembler::PrepareCallCFunction(int num_arguments) {
   ASSERT(IsPowerOf2(frame_alignment));
   int argument_slots_on_stack =
       ArgumentStackSlotsForCFunctionCall(num_arguments);
-  __q subq(rsp, Immediate((argument_slots_on_stack + 1) * kPointerSize));
+  subq(rsp, Immediate((argument_slots_on_stack + 1) * kRegisterSize));
   and_(rsp, Immediate(-frame_alignment));
-#ifndef V8_TARGET_ARCH_X32
-  movq(Operand(rsp, argument_slots_on_stack * kPointerSize), kScratchRegister);
-#else
   movq(Operand(rsp, argument_slots_on_stack * kRegisterSize), kScratchRegister);
-#endif
 }
 
 
@@ -5085,7 +5080,7 @@ void MacroAssembler::CallCFunction(Register function, int num_arguments) {
   ASSERT(num_arguments >= 0);
   int argument_slots_on_stack =
       ArgumentStackSlotsForCFunctionCall(num_arguments);
-  __q movq(rsp, Operand(rsp, argument_slots_on_stack * kPointerSize));
+  movq(rsp, Operand(rsp, argument_slots_on_stack * kRegisterSize));
 }
 
 
@@ -5408,7 +5403,6 @@ void MacroAssembler::JumpIfDictionaryInPrototypeChain(
 }
 
 
-#undef __q
 #undef __k
 
 

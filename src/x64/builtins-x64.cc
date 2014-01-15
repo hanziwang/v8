@@ -1472,8 +1472,6 @@ void Builtins::Generate_OsrAfterStackCheck(MacroAssembler* masm) {
 }
 
 
-#undef __q
-#undef __a
 #undef __k
 #undef __
 

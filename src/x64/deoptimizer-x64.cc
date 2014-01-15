@@ -142,7 +142,6 @@ Code* Deoptimizer::NotifyStubFailureBuiltin() {
 
 #define __ masm()->
 #define __k __
-#define __q __
 
 void Deoptimizer::EntryGenerator::Generate() {
   GeneratePrologue();
@@ -167,13 +166,8 @@ void Deoptimizer::EntryGenerator::Generate() {
     __k push(r);
   }
 
-#ifndef V8_TARGET_ARCH_X32
-  const int kSavedRegistersAreaSize = kNumberOfRegisters * kPointerSize +
-                                      kDoubleRegsSize;
-#else
   const int kSavedRegistersAreaSize = kNumberOfRegisters * kRegisterSize +
                                       kDoubleRegsSize;
-#endif
 
   // We use this to keep the value of the fifth argument temporarily.
   // Unfortunately we can't store it directly in r8 (used for passing
@@ -185,8 +179,9 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Get the address of the location in the code object
   // and compute the fp-to-sp delta in register arg5.
-  __q movq(arg_reg_4, Operand(rsp, kSavedRegistersAreaSize + 1 * kPointerSize));
-  __q lea(arg5, Operand(rsp, kSavedRegistersAreaSize + 2 * kPointerSize));
+  __ movq(arg_reg_4, Operand(rsp, kSavedRegistersAreaSize + 1 * kRegisterSize));
+  __ lea(arg5, Operand(rsp, kSavedRegistersAreaSize + 1 * kRegisterSize +
+                            kPCOnStackSize));
 
   __ subq(arg5, rbp);
   __ neg(arg5);
@@ -235,7 +230,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   }
 
   // Remove the bailout id and return address from the stack.
-  __q addq(rsp, Immediate(2 * kPointerSize));
+  __ addq(rsp, Immediate(1 * kRegisterSize + kPCOnStackSize));
 
   // Compute a pointer to the unwinding limit in register rcx; that is
   // the first stack slot not part of the input frame.
